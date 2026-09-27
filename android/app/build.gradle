@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+def ksFile = file('../keystore.jks')
+
+android {
+    namespace 'com.chickpet'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.chickpet"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile ksFile
+            storePassword "chickpet123"
+            keyAlias "chickpet"
+            keyPassword "chickpet123"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            // keystore 还没生成时（首次构建前）先不签名，避免报错
+            if (ksFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
