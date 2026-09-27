@@ -121,14 +121,14 @@ public class ChickService extends Service {
                 c.setShowBadge(false);
                 nm.createNotificationChannel(c);
             }
-            String nm = readConfig().optString("name", "姆姆");
-            if (nm == null || nm.trim().isEmpty()) nm = "姆姆";
+            String petName = readConfig().optString("name", "姆姆");
+            if (petName == null || petName.trim().isEmpty()) petName = "姆姆";
             Notification.Builder b = (Build.VERSION.SDK_INT >= 26)
                     ? new Notification.Builder(this, CHANNEL_ID)
                     : new Notification.Builder(this);
             Notification n = b
-                    .setContentTitle(nm)
-                    .setContentText(nm + " 正在你桌面上溜达～")
+                    .setContentTitle(petName)
+                    .setContentText(petName + " 正在你桌面上溜达～")
                     .setSmallIcon(android.R.drawable.ic_menu_compass)
                     .setOngoing(true)
                     .build();
