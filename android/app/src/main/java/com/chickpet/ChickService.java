@@ -29,18 +29,14 @@ import java.io.InputStreamReader;
 import java.util.Random;
 
 /**
- * 前台服务：撑住悬浮窗，处理拖动 / 点击 / 自动游走 / 定时冒话。
+ * 前台服务：撑住悬浮窗，处理拖动 / 点击 / 自动游走 / 定时冒话 / 随机表演动作。
+ * 台词和动作全部在 assets/pet.html 里维护，这里只负责「什么时候触发」。
  */
 public class ChickService extends Service {
 
     public static volatile boolean running = false;
 
     private static final String CHANNEL_ID = "chickpet";
-    private static final String[] SAYINGS = {
-            "叽？", "叽叽！", "我在呀～", "嘿嘿",
-            "今天也加油！", "咕……", "你有想我吗？", "别熬太晚。",
-            "我一直在这儿。", "（歪头）", "要休息一下吗？"
-    };
 
     private WindowManager wm;
     private FrameLayout root;
@@ -81,7 +77,8 @@ public class ChickService extends Service {
         buildOverlay();
 
         handler.postDelayed(wanderLoop, 9000);
-        handler.postDelayed(sayLoop, 18000);
+        handler.postDelayed(sayLoop, 20000);
+        handler.postDelayed(actionLoop, 30000);
     }
 
     @Override
@@ -141,7 +138,6 @@ public class ChickService extends Service {
         root = new FrameLayout(this);
 
         web = new TouchThroughWebView(this);
-        web.setBackgroundColor(Color.TRANSPARENT);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -149,10 +145,20 @@ public class ChickService extends Service {
         s.setSupportZoom(false);
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
+        web.setBackgroundColor(Color.TRANSPARENT);
         web.setVerticalScrollBarEnabled(false);
         web.setHorizontalScrollBarEnabled(false);
-        web.setBackgroundColor(0x00000000);
-        web.setWebViewClient(new WebViewClient());
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView v, String url) {
+                super.onPageFinished(v, url);
+                // 告诉网页「由 Android 驱动点击」，避免同一次点击被处理两遍
+                try {
+                    v.evaluateJavascript("window.__androiddriven = true;", null);
+                } catch (Exception ignored) {
+                }
+            }
+        });
         web.loadUrl("file:///android_asset/pet.html");
 
         root.addView(web, new FrameLayout.LayoutParams(
@@ -207,8 +213,8 @@ public class ChickService extends Service {
                     float dx = Math.abs(e.getRawX() - downX);
                     float dy = Math.abs(e.getRawY() - downY);
                     if (dx < 14 && dy < 14 && System.currentTimeMillis() - downTime < 450) {
+                        // 点一下 → 随机换个动作 + 说对应的话（都在 HTML 里决定）
                         runJs("chickNext()");
-                        sayRandom();
                     }
                     return true;
             }
@@ -261,25 +267,29 @@ public class ChickService extends Service {
         });
     }
 
-    // ---------------------------------------------------------------- 说话
+    // ---------------------------------------------------------------- 冒话
 
     private final Runnable sayLoop = new Runnable() {
         @Override
         public void run() {
             if (System.currentTimeMillis() - lastTouchAt > 8000) {
-                sayRandom();
+                runJs("chickSayRandom()");
             }
             handler.postDelayed(this, 25000 + random.nextInt(45000));
         }
     };
 
-    private void sayRandom() {
-        sayText(SAYINGS[random.nextInt(SAYINGS.length)]);
-    }
+    // ---------------------------------------------------------------- 随机表演动作
 
-    private void sayText(final String text) {
-        runJs("chickSay(" + JSONObject.quote(text) + ")");
-    }
+    private final Runnable actionLoop = new Runnable() {
+        @Override
+        public void run() {
+            if (root != null && System.currentTimeMillis() - lastTouchAt > 12000) {
+                runJs("chickAct()");
+            }
+            handler.postDelayed(this, 20000 + random.nextInt(40000));
+        }
+    };
 
     private void runJs(final String js) {
         final WebView w = web;

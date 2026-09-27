@@ -6,7 +6,6 @@
 <title>ChickPet</title>
 <style>
   *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  /* ★ 桌宠里必须是全透明背景 */
   html,body{
     width:100%; height:100%;
     background:transparent !important;
@@ -14,7 +13,6 @@
   }
   #wrap{ position:relative; width:100%; height:100%; }
 
-  /* 小鸡：占窗口底部一个正方形 */
   #figure{
     position:absolute; left:0; bottom:0;
     width:100%; height:0; padding-bottom:100%;
@@ -25,7 +23,6 @@
     shape-rendering:crispEdges;
   }
 
-  /* 气泡：窗口上方那 45% 留给它 */
   #bubble{
     position:absolute; left:50%; top:2%;
     transform:translate(-50%,-6px) scale(.85);
@@ -47,18 +44,58 @@
   }
   #bubble.show{ opacity:1; transform:translate(-50%,0) scale(1); }
 
-  /* 动画 */
-  .ck-body{ transform-origin:12.4px 17.44px; animation:ck-bob 2.8s ease-in-out infinite; }
-  .ck-shad{ transform-origin:12.4px 19.6px;  animation:ck-shad 2.8s ease-in-out infinite; }
+  /* ========== 动画 ========== */
+  .ck-body{ transform-origin:12.4px 17.44px; }
+  .ck-shad{ transform-origin:12.4px 19.6px; animation:ck-shad 2.8s ease-in-out infinite; }
   .ck-eye { transform-origin:12.4px 12.48px; animation:ck-blink 4.2s infinite; }
-  .ck-zzz { animation:ck-zzz 2.4s var(--sd,0s) infinite ease-out; }
+
+  .ck-a-idle { animation:ck-bob 2.8s ease-in-out infinite; }
+  .ck-a-happy{ animation:ck-bob 1.7s ease-in-out infinite; }
+  .ck-a-sleepy{ animation:ck-breathe 4.2s ease-in-out infinite; }
+  .ck-a-jump { animation:ck-jump 1.05s cubic-bezier(.32,.72,.36,1) infinite; }
+  .ck-a-dance{ animation:ck-dance 1.15s ease-in-out infinite; }
+  .ck-a-angry{ animation:ck-shake .16s linear infinite; }
+  .ck-a-love { animation:ck-love 2.0s ease-in-out infinite; }
+  .ck-a-peck { animation:ck-peck 1.15s ease-in-out infinite; }
+
+  .ck-note, .ck-heart, .ck-steam{ animation:ck-rise 1.9s var(--sd,0s) infinite ease-out; }
+  .ck-heart{ animation-duration:2.3s; }
+  .ck-steam{ animation-duration:1.0s; }
+
   @keyframes ck-bob  { 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-.48px) } }
-  @keyframes ck-shad { 0%,100%{ transform:scaleX(1); opacity:.18 }
-                       50%{ transform:scaleX(.95);  opacity:.13 } }
+  @keyframes ck-breathe{ 0%,100%{ transform:translateY(0) scaleY(1) } 50%{ transform:translateY(.25px) scaleY(.985) } }
+  @keyframes ck-shad { 0%,100%{ transform:scaleX(1); opacity:.18 } 50%{ transform:scaleX(.95); opacity:.13 } }
   @keyframes ck-blink{ 0%,44%,56%,100%{ transform:scaleY(1) } 50%{ transform:scaleY(.08) } }
-  @keyframes ck-zzz  { 0%{ opacity:0; transform:translate(0,0) scale(.7) }
-                       30%{ opacity:.9 }
-                       100%{ opacity:0; transform:translate(3px,-6px) scale(1.1) } }
+
+  @keyframes ck-jump {
+    0%,100%{ transform:translateY(0) scaleY(.97) }
+    18%    { transform:translateY(0) scaleY(.90) }
+    45%    { transform:translateY(-3.4px) scaleY(1.03) }
+    62%    { transform:translateY(-3.4px) scaleY(1.03) }
+    88%    { transform:translateY(0) scaleY(.94) }
+  }
+  @keyframes ck-dance {
+    0%,100%{ transform:rotate(-8deg) translateY(0) }
+    50%    { transform:rotate(8deg) translateY(-.6px) }
+  }
+  @keyframes ck-shake {
+    0%,100%{ transform:translateX(0) rotate(-.6deg) }
+    50%    { transform:translateX(.4px) rotate(.6deg) }
+  }
+  @keyframes ck-love {
+    0%,100%{ transform:rotate(-3.5deg) translateY(0) }
+    50%    { transform:rotate(3.5deg) translateY(-.4px) }
+  }
+  @keyframes ck-peck {
+    0%,100%{ transform:rotate(0deg) }
+    28%    { transform:rotate(15deg) }
+    55%    { transform:rotate(1deg) }
+  }
+  @keyframes ck-rise {
+    0%  { opacity:0; transform:translate(0,1.2px) scale(.6) }
+    25% { opacity:1 }
+    100%{ opacity:0; transform:translate(1.6px,-5.2px) scale(1.05) }
+  }
 </style>
 </head>
 <body>
@@ -69,12 +106,18 @@
 
 <script>
 /* ============================================================
-   黄色像素小鸡 · 桌宠版
+   黄色像素小鸡 · 桌宠版 v2
    ------------------------------------------------------------
-   与 Android 的接口：
-     chickNext()      换下一个表情
-     chickSay(text)   头顶弹一句话
-     chickSet(key)    直接指定形象（idle / happy / sleepy）
+   8 个动作：idle 待机 / happy 开心 / sleepy 困 / jump 蹦跳
+             dance 摇摆 / angry 生气 / love 害羞 / peck 啄米
+
+   给 Android 的接口：
+     chickNext()       随机换动作 + 说对应的话
+     chickAct()        随机做个动作（约一半概率说话）
+     chickSay(text)    指定说一句话
+     chickSayRandom()  按当前动作随机说一句
+     chickSet(key)     直接切到某个动作
+     chickRest()       回到待机
    ============================================================ */
 
 const C = {
@@ -108,9 +151,27 @@ const WINGS = `
 
 const TUFT = `<rect x="12.0" y="7.36" width="0.8" height="1.44" fill="${C.wing}"/>`;
 
+/* 像素小爱心（5×5 点阵） */
+const HEART_PTS = [
+  [0,0],[1,0],[3,0],[4,0],
+  [0,1],[1,1],[2,1],[3,1],[4,1],
+  [0,2],[1,2],[2,2],[3,2],[4,2],
+  [1,3],[2,3],[3,3],
+  [2,4]
+];
+function heart(x0, y0, u, fill){
+  return HEART_PTS.map(function(p){
+    return '<rect x="' + (x0 + p[0]*u).toFixed(2) + '" y="' + (y0 + p[1]*u).toFixed(2) +
+           '" width="' + u + '" height="' + u + '" fill="' + fill + '"/>';
+  }).join('');
+}
+const EYE_SMILE_L = `<path d="M9.6 12.6 q0.8 -1.4 1.6 0" fill="none" stroke="${C.eye}" stroke-width=".64"/>`;
+const EYE_SMILE_R = `<path d="M13.6 12.6 q0.8 -1.4 1.6 0" fill="none" stroke="${C.eye}" stroke-width=".64"/>`;
+
+/* ---------------- 待机 ---------------- */
 const IDLE = `
   ${SHADOW}
-  <g class="ck-body">
+  <g class="ck-body ck-a-idle">
     ${LEGS}
     ${BODY}
     ${WINGS}
@@ -122,23 +183,25 @@ const IDLE = `
     <rect x="11.2" y="13.28" width="2.4" height="0.8" fill="${C.beak}"/>
   </g>`;
 
+/* ---------------- 开心 ---------------- */
 const HAPPY = `
   ${SHADOW}
-  <g class="ck-body">
+  <g class="ck-body ck-a-happy">
     ${LEGS}
     ${BODY}
     <rect x="6.0"  y="11.68" width="1.6" height="2.4" fill="${C.wing}" transform="rotate(-20,6.8,12.88)"/>
     <rect x="17.2" y="11.68" width="1.6" height="2.4" fill="${C.wing}" transform="rotate(20,18.0,12.88)"/>
     ${TUFT}
-    <path d="M9.6 12.6 q0.8 -1.4 1.6 0"  fill="none" stroke="${C.eye}" stroke-width=".64" stroke-linecap="butt"/>
-    <path d="M13.6 12.6 q0.8 -1.4 1.6 0" fill="none" stroke="${C.eye}" stroke-width=".64" stroke-linecap="butt"/>
+    ${EYE_SMILE_L}
+    ${EYE_SMILE_R}
     <rect x="11.2" y="13.28" width="2.4" height="1.6" fill="${C.beak}"/>
     <rect x="12.0" y="14.4"  width="0.8" height="0.48" fill="#E08A22"/>
   </g>`;
 
+/* ---------------- 困 ---------------- */
 const SLEEPY = `
   ${SHADOW}
-  <g class="ck-body">
+  <g class="ck-body ck-a-sleepy">
     ${LEGS}
     ${BODY}
     <rect x="6.6"  y="12.4" width="1.4" height="2.3" fill="${C.wing}"/>
@@ -149,57 +212,205 @@ const SLEEPY = `
       <rect x="13.6" y="12.48" width="1.6" height="0.48"/>
     </g>
     <rect x="11.6" y="13.28" width="1.6" height="0.8" fill="${C.beak}"/>
-    <text class="ck-zzz" style="--sd:0s"    x="16.0" y="12.5" font-size="2.6" fill="#cfe2ff" font-family="monospace">z</text>
-    <text class="ck-zzz" style="--sd:-1.2s" x="17.3" y="10.4" font-size="1.9" fill="#cfe2ff" font-family="monospace" opacity=".8">z</text>
+    <text class="ck-note" style="--sd:0s"    x="16.0" y="12.5" font-size="2.6" fill="#cfe2ff" font-family="sans-serif">z</text>
+    <text class="ck-note" style="--sd:-1.2s" x="17.3" y="10.4" font-size="1.9" fill="#cfe2ff" font-family="sans-serif" opacity=".8">z</text>
+  </g>`;
+
+/* ---------------- 蹦跳 ---------------- */
+const JUMP = `
+  ${SHADOW}
+  <g class="ck-body ck-a-jump">
+    ${LEGS}
+    ${BODY}
+    <rect x="5.8"  y="11.0" width="1.6" height="2.4" fill="${C.wing}" transform="rotate(-35,6.6,12.2)"/>
+    <rect x="17.4" y="11.0" width="1.6" height="2.4" fill="${C.wing}" transform="rotate(35,18.2,12.2)"/>
+    ${TUFT}
+    ${EYE_SMILE_L}
+    ${EYE_SMILE_R}
+    <rect x="11.2" y="13.0" width="2.4" height="1.9" fill="${C.beak}"/>
+    <rect x="11.7" y="14.1" width="1.4" height="0.6" fill="#E08A22"/>
+  </g>`;
+
+/* ---------------- 摇摆舞 ---------------- */
+const DANCE = `
+  ${SHADOW}
+  <g class="ck-body ck-a-dance">
+    ${LEGS}
+    ${BODY}
+    <rect x="5.6"  y="11.4" width="1.6" height="2.4" fill="${C.wing}" transform="rotate(-28,6.4,12.6)"/>
+    <rect x="17.0" y="12.8" width="1.6" height="2.4" fill="${C.wing}" transform="rotate(10,17.8,14.0)"/>
+    ${TUFT}
+    ${EYE_SMILE_L}
+    ${EYE_SMILE_R}
+    <rect x="11.0" y="13.0" width="2.8" height="1.7" fill="${C.beak}"/>
+    <text class="ck-note" style="--sd:0s"   x="16.3" y="9.6" font-size="3.0" fill="#FFD86B" font-family="sans-serif">♪</text>
+    <text class="ck-note" style="--sd:-.8s" x="14.6" y="7.8" font-size="2.2" fill="#FFD86B" font-family="sans-serif" opacity=".8">♪</text>
+  </g>`;
+
+/* ---------------- 生气 ---------------- */
+const ANGRY = `
+  ${SHADOW}
+  <g class="ck-body ck-a-angry">
+    ${LEGS}
+    ${BODY}
+    ${WINGS}
+    ${TUFT}
+    <rect x="9.3"  y="10.5" width="2.0" height="0.5" fill="#D9A22B" transform="rotate(18,10.3,10.75)"/>
+    <rect x="13.5" y="10.5" width="2.0" height="0.5" fill="#D9A22B" transform="rotate(-18,14.5,10.75)"/>
+    <rect x="9.6"  y="12.05" width="1.6" height="0.5" fill="${C.eye}"/>
+    <rect x="13.6" y="12.05" width="1.6" height="0.5" fill="${C.eye}"/>
+    <rect x="11.2" y="13.5"  width="2.4" height="0.7" fill="${C.beak}"/>
+    <g fill="#FF8A5A">
+      <rect class="ck-steam" style="--sd:0s"   x="16.6" y="8.9" width="0.8" height="0.8"/>
+      <rect class="ck-steam" style="--sd:-.5s" x="18.1" y="8.2" width="0.6" height="0.6"/>
+    </g>
+  </g>`;
+
+/* ---------------- 害羞 ---------------- */
+const LOVE = `
+  ${SHADOW}
+  <g class="ck-body ck-a-love">
+    ${LEGS}
+    ${BODY}
+    ${WINGS}
+    <rect x="11.6" y="7.6" width="0.8" height="1.2" fill="${C.wing}" transform="rotate(14,12.4,8.2)"/>
+    ${heart(9.4, 11.3, 0.4, '#E4572E')}
+    ${heart(13.4, 11.3, 0.4, '#E4572E')}
+    <rect x="11.6" y="13.5" width="1.6" height="0.7" fill="${C.beak}"/>
+    <rect x="8.1"  y="13.6" width="1.3" height="0.7" fill="#FFB3B3" opacity=".9"/>
+    <rect x="15.4" y="13.6" width="1.3" height="0.7" fill="#FFB3B3" opacity=".9"/>
+    <text class="ck-heart" style="--sd:0s"    x="16.5" y="9.2" font-size="3.0" fill="#FF5C7A" font-family="sans-serif">&#9829;</text>
+    <text class="ck-heart" style="--sd:-1.1s" x="15.0" y="7.4" font-size="2.2" fill="#FF5C7A" font-family="sans-serif" opacity=".8">&#9829;</text>
+  </g>`;
+
+/* ---------------- 啄米 ---------------- */
+const PECK = `
+  ${SHADOW}
+  <rect x="14.9" y="18.4" width="0.8" height="0.8" fill="#F3E3A6"/>
+  <g class="ck-body ck-a-peck">
+    ${LEGS}
+    ${BODY}
+    <rect x="6.7"  y="12.9" width="1.3" height="2.3" fill="${C.wing}"/>
+    <rect x="16.8" y="12.9" width="1.3" height="2.3" fill="${C.wing}"/>
+    ${TUFT}
+    <g fill="${C.eye}">
+      <rect x="9.8"  y="11.9" width="1.4" height="1.2"/>
+      <rect x="13.6" y="11.9" width="1.4" height="1.2"/>
+    </g>
+    <rect x="11.5" y="13.6" width="1.6" height="1.0" fill="${C.beak}"/>
   </g>`;
 
 function wrap(inner){
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0.4 2 24 24">${inner}</svg>`;
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0.4 2 24 24">' + inner + '</svg>';
 }
 
-const STATES = { idle: wrap(IDLE), happy: wrap(HAPPY), sleepy: wrap(SLEEPY) };
-const ORDER  = ['idle', 'happy', 'sleepy'];
+const STATES = {
+  idle:  wrap(IDLE),
+  happy: wrap(HAPPY),
+  sleepy:wrap(SLEEPY),
+  jump:  wrap(JUMP),
+  dance: wrap(DANCE),
+  angry: wrap(ANGRY),
+  love:  wrap(LOVE),
+  peck:  wrap(PECK)
+};
 
-const SAYINGS = [
-  '叽？', '叽叽！', '（歪头）', '我在呀～', '嘿嘿',
-  '今天也加油！', '咕……', '你有想我吗？',
-  '别熬太晚。', '我一直在这儿。', '要休息一下吗？'
-];
+const ORDER = ['idle','happy','sleepy','jump','dance','angry','love','peck'];
 
-/* ------------- 渲染 ------------- */
+/* 每个动作专属的台词 */
+const LINES = {
+  idle:  ['叽？','我在呀～','（歪头）','咕……','嘿嘿','干嘛呀？','我一直在这儿。'],
+  happy: ['叽叽！','今天也加油！','好开心！','耶～','啦啦啦～','你来了我好高兴！'],
+  sleepy:['呼……','困了……','（打哈欠）','让我眯一会儿','别吵…我睡会儿','晚安…叽'],
+  jump:  ['蹦！','跳跳跳！','叽呀——','看我跳得多高！','嘿咻！','再蹦一个！'],
+  dance: ['♪ 啦啦～','一起摇摆！','叽叽叽～♪','（扭屁股）','跟上节奏～','♪～叽～♪'],
+  angry: ['哼！','叽！（生气）','别惹我！','（炸毛）','不理你了！','气鼓鼓…'],
+  love:  ['（害羞）','♥','最喜欢你了','嘿嘿……','（脸红）','人家有点不好意思…'],
+  peck:  ['啄啄啄…','叽、叽、叽','找吃的！','（埋头啄米）','这米真香～','吃饱饱！']
+};
+
+const SAYINGS = [];
+for (const k in LINES) SAYINGS.push.apply(SAYINGS, LINES[k]);
+
+/* ---------------- 渲染 ---------------- */
 const figure = document.getElementById('figure');
 const bubble = document.getElementById('bubble');
 
-let idx = 0;
-function render(){ figure.innerHTML = STATES[ORDER[idx]]; }
-function next(){ idx = (idx + 1) % ORDER.length; render(); }
-render();
+let cur = 'idle';
+let backTimer = null;
+
+function show(key, autoBack){
+  if (!STATES[key]) key = 'idle';
+  cur = key;
+  figure.innerHTML = STATES[key];
+  clearTimeout(backTimer);
+  if (autoBack === false || key === 'idle') return;
+  backTimer = setTimeout(function(){
+    if (cur === key) show('idle', false);
+  }, 6000);
+}
+
+function line(key){
+  const a = LINES[key];
+  if (!a || !a.length) return null;
+  return a[Math.floor(Math.random() * a.length)];
+}
+
+function randomKey(){
+  let k = ORDER[Math.floor(Math.random() * ORDER.length)];
+  let guard = 0;
+  while (k === cur && guard++ < 12){
+    k = ORDER[Math.floor(Math.random() * ORDER.length)];
+  }
+  return k;
+}
 
 let sayTimer = null;
 function say(text){
-  bubble.textContent = text != null ? text
+  bubble.textContent = (text != null && text !== '') ? text
       : SAYINGS[Math.floor(Math.random() * SAYINGS.length)];
   bubble.classList.add('show');
   clearTimeout(sayTimer);
   sayTimer = setTimeout(function(){ bubble.classList.remove('show'); }, 3200);
 }
 
-/* ------------- 给 Android 调用的接口 ------------- */
-window.chickNext = function(){ next(); return ORDER[idx]; };
-window.chickSay  = function(text){ say(text); };
-window.chickSet  = function(key){
-  const i = ORDER.indexOf(key);
-  if (i >= 0){ idx = i; render(); }
+show('idle', false);
+
+/* ---------------- 给 Android 的接口 ---------------- */
+window.chickNext = function(){
+  const k = randomKey();
+  show(k);
+  const t = line(k);
+  if (t) say(t);
+  return k;
 };
 
-/* 手指/鼠标也能直接玩（浏览器里预览时用） */
+window.chickAct = function(){
+  const k = randomKey();
+  show(k);
+  if (Math.random() < 0.55){
+    const t = line(k);
+    if (t) say(t);
+  }
+  return k;
+};
+
+window.chickSay = function(text){ say(text); };
+
+window.chickSayRandom = function(){
+  say(line(cur));
+};
+
+window.chickSet = function(key){ show(key); return key; };
+
+window.chickRest = function(){ show('idle', false); };
+
+/* 浏览器里预览时直接点也能玩（桌宠里由 Android 驱动，不重复触发） */
 document.addEventListener('pointerup', function(e){
-  // 只有落在小鸡身上才算点击（Android 端会自己调 chickNext）
-  const svg = figure.querySelector('svg');
-  if (!svg) return;
+  if (window.__androiddriven) return;
   const r = figure.getBoundingClientRect();
   if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom){
-    if (!window.__androiddriven) next();
+    window.chickNext();
   }
 });
 </script>
