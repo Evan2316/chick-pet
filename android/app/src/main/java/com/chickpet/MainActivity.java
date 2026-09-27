@@ -32,13 +32,13 @@ public class MainActivity extends Activity {
         root.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView title = new TextView(this);
-        title.setText("🐥 小鸡桌宠");
+        title.setText("🐥 姆姆");
         title.setTextSize(24f);
         title.setGravity(Gravity.CENTER);
         root.addView(title);
 
         TextView tip = new TextView(this);
-        tip.setText("透明悬浮在桌面上的一只黄色像素小鸡\n可拖动 · 点一下换表情 · 偶尔蹦话 · 自己溜达");
+        tip.setText("姆姆是一只浮在桌面上的黄色像素小鸡\n可拖动 · 点一下换动作 · 会自己溜达、蹦话、跳舞");
         tip.setTextSize(13f);
         tip.setGravity(Gravity.CENTER);
         tip.setPadding(0, dp(14), 0, dp(22));

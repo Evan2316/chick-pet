@@ -69,7 +69,10 @@ public class ChickService extends Service {
         screenW = dm.widthPixels;
         screenH = dm.heightPixels;
 
-        int sizeDp = readSizeDp();
+        int sizeDp = readConfigInt("size", 110);
+        if (sizeDp < 40) sizeDp = 40;
+        if (sizeDp > 400) sizeDp = 400;
+
         sizePx = (int) (sizeDp * dm.density);
         if (sizePx < 1) sizePx = (int) (110 * dm.density);
 
@@ -118,12 +121,14 @@ public class ChickService extends Service {
                 c.setShowBadge(false);
                 nm.createNotificationChannel(c);
             }
+            String nm = readConfig().optString("name", "姆姆");
+            if (nm == null || nm.trim().isEmpty()) nm = "姆姆";
             Notification.Builder b = (Build.VERSION.SDK_INT >= 26)
                     ? new Notification.Builder(this, CHANNEL_ID)
                     : new Notification.Builder(this);
             Notification n = b
-                    .setContentTitle("小鸡桌宠")
-                    .setContentText("我正在桌面上溜达～")
+                    .setContentTitle(nm)
+                    .setContentText(nm + " 正在你桌面上溜达～")
                     .setSmallIcon(android.R.drawable.ic_menu_compass)
                     .setOngoing(true)
                     .build();
@@ -152,9 +157,14 @@ public class ChickService extends Service {
             @Override
             public void onPageFinished(WebView v, String url) {
                 super.onPageFinished(v, url);
-                // 告诉网页「由 Android 驱动点击」，避免同一次点击被处理两遍
                 try {
-                    v.evaluateJavascript("window.__androiddriven = true;", null);
+                    // 告诉网页「由 Android 驱动点击」，避免同一次点击被处理两遍
+                    // 顺便把名字注入进去（台词里的 {n} 会用它）
+                    String nm = readConfig().optString("name", "姆姆");
+                    if (nm == null || nm.trim().isEmpty()) nm = "姆姆";
+                    v.evaluateJavascript(
+                            "window.__androiddriven = true; window.chickSetName("
+                                    + JSONObject.quote(nm) + ");", null);
                 } catch (Exception ignored) {
                 }
             }
@@ -307,7 +317,15 @@ public class ChickService extends Service {
 
     // ---------------------------------------------------------------- 配置
 
-    private int readSizeDp() {
+    private int readConfigInt(String key, int def) {
+        try {
+            return readConfig().optInt(key, def);
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private JSONObject readConfig() {
         InputStream in = null;
         try {
             in = getAssets().open("config.json");
@@ -315,13 +333,9 @@ public class ChickService extends Service {
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = r.readLine()) != null) sb.append(line);
-            JSONObject o = new JSONObject(sb.toString());
-            int v = o.optInt("size", 110);
-            if (v < 40) v = 40;
-            if (v > 400) v = 400;
-            return v;
+            return new JSONObject(sb.toString());
         } catch (Exception e) {
-            return 110;
+            return new JSONObject();
         } finally {
             try {
                 if (in != null) in.close();

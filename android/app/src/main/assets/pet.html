@@ -317,9 +317,13 @@ const STATES = {
 
 const ORDER = ['idle','happy','sleepy','jump','dance','angry','love','peck'];
 
-/* 每个动作专属的台词 */
+/* 名字：Android 会用 chickSetName() 把 config.json 里的名字注入进来 */
+let NAME = '姆姆';
+function fmt(s){ return String(s).replace(/\{n\}/g, NAME); }
+
+/* 每个动作专属的台词（{n} 会被替换成名字） */
 const LINES = {
-  idle:  ['叽？','我在呀～','（歪头）','咕……','嘿嘿','干嘛呀？','我一直在这儿。'],
+  idle:  ['叽？','{n}在呢～','（歪头）','咕……','嘿嘿','干嘛呀？','我一直在这儿。','我叫{n}！','{n}，等你哦～'],
   happy: ['叽叽！','今天也加油！','好开心！','耶～','啦啦啦～','你来了我好高兴！'],
   sleepy:['呼……','困了……','（打哈欠）','让我眯一会儿','别吵…我睡会儿','晚安…叽'],
   jump:  ['蹦！','跳跳跳！','叽呀——','看我跳得多高！','嘿咻！','再蹦一个！'],
@@ -367,8 +371,8 @@ function randomKey(){
 
 let sayTimer = null;
 function say(text){
-  bubble.textContent = (text != null && text !== '') ? text
-      : SAYINGS[Math.floor(Math.random() * SAYINGS.length)];
+  bubble.textContent = fmt((text != null && text !== '') ? text
+      : SAYINGS[Math.floor(Math.random() * SAYINGS.length)]);
   bubble.classList.add('show');
   clearTimeout(sayTimer);
   sayTimer = setTimeout(function(){ bubble.classList.remove('show'); }, 3200);
@@ -399,6 +403,12 @@ window.chickSay = function(text){ say(text); };
 
 window.chickSayRandom = function(){
   say(line(cur));
+};
+
+/* Android 会把 config.json 里的名字注入进来 */
+window.chickSetName = function(n){
+  if (n != null && String(n) !== '') NAME = String(n);
+  return NAME;
 };
 
 window.chickSet = function(key){ show(key); return key; };

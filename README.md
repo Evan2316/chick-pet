@@ -49,9 +49,22 @@ chick-pet/
 - 在 `STATES` 里加一个 key → SVG 字符串（SVG 必须带 `xmlns` 和 `viewBox`）
 - 把 key 加进 `ORDER`
 
-## 改大小
+## 改大小 / 改名字
 
-改 `android/app/src/main/assets/config.json` 里的 `size`（单位 dp，40~400），重启服务生效。
+改 `android/app/src/main/assets/config.json`：
+
+```json
+{
+  "size": 110,
+  "name": "姆姆"
+}
+```
+
+- `size` —— 大小，单位 dp（40~400）
+- `name` —— 小鸡的名字，会用在**通知**、**App 标题**和**台词**里；
+  台词里写 `{n}` 就会被替换成这个名字
+
+改完重启桌宠服务生效。
 
 ## 编译
 
