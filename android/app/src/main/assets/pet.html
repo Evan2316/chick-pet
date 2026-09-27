@@ -96,6 +96,32 @@
     25% { opacity:1 }
     100%{ opacity:0; transform:translate(1.6px,-5.2px) scale(1.05) }
   }
+
+  /* ========== 手势用的临时动作（加在 #figure 上，播完自己摘掉） ========== */
+  /* 小鸡的旋转/位移以「脚下中心」为基准：12.4/24 = 51.7%，17.44/24 = 72.7% */
+  #figure svg{ transform-origin:51.7% 72.7%; }
+
+  #figure.act-hop svg   { animation:act-hop .42s ease-out; }
+  #figure.act-shake svg { animation:act-shake .46s ease-in-out; }
+  #figure.act-shrink svg{ animation:act-shrink .72s ease-in-out; }
+  #figure.act-eat svg   { animation:act-eat 1.5s ease-in-out; }
+
+  @keyframes act-hop   { 0%,100%{ transform:translateY(0) } 40%{ transform:translateY(-9%) } }
+  @keyframes act-shake { 0%,25%{ transform:translateX(-5%) rotate(-3deg) }
+                         75%{ transform:translateX(5%) rotate(3deg) } 100%{ transform:translateX(0) } }
+  @keyframes act-shrink{ 0%,100%{ transform:scale(1) } 50%{ transform:scale(.88) } }
+  @keyframes act-eat   {
+    0%  { transform:translate(0,0) rotate(0) }
+    20% { transform:translate(2.0px,0) rotate(0) }
+    38% { transform:translate(2.0px,0) rotate(17deg) }
+    54% { transform:translate(2.0px,0) rotate(2deg) }
+    70% { transform:translate(2.0px,0) rotate(15deg) }
+    100%{ transform:translate(0,0) rotate(0) }
+  }
+
+  /* 米粒 */
+  .ck-rice{ animation:ck-rice-in .28s ease-out; }
+  @keyframes ck-rice-in { from{ opacity:0; transform:translateY(-2px) } to{ opacity:1; transform:translateY(0) } }
 </style>
 </head>
 <body>
@@ -402,6 +428,8 @@ window.chickAct = function(){
 window.chickSay = function(text){ say(text); };
 
 window.chickSayRandom = function(){
+  if (fullness <= 1 && Math.random() < 0.65){ say('姆姆饿了…🍚'); return; }
+  if (fullness >= FEED_MAX && Math.random() < 0.5){ say('好饱…嗝～'); return; }
   say(line(cur));
 };
 
@@ -414,6 +442,113 @@ window.chickSetName = function(n){
 window.chickSet = function(key){ show(key); return key; };
 
 window.chickRest = function(){ show('idle', false); };
+
+/* ================= 手势接口（由 Android 的触摸手势调用） ================= */
+
+/* 临时动作：给 #figure 挂一个动画类，播完自己摘掉。
+   必须 void offsetWidth 强制重排，否则连着触发同一个动画会没反应 */
+const ACT_CLASSES = ['act-hop','act-shake','act-shrink','act-eat'];
+function act(cls, ms){
+  for (let i = 0; i < ACT_CLASSES.length; i++) figure.classList.remove(ACT_CLASSES[i]);
+  void figure.offsetWidth;
+  figure.classList.add(cls);
+  setTimeout(function(){ figure.classList.remove(cls); }, ms);
+}
+
+window.chickPoke = function(){          /* 双击：戳一下 */
+  act('act-hop', 460);
+  say('干嘛～');
+};
+
+window.chickHold = function(){          /* 长按：按住不放 */
+  act('act-shrink', 760);
+  show('sleepy', false);
+  say('……松手啦。');
+};
+
+window.chickCombo = function(n){        /* 连击 3 / 5 / 8 */
+  n = parseInt(n, 10) || 3;
+  if (n >= 8){ show('angry'); act('act-shake', 540); say('再戳我就真生气了！'); }
+  else if (n >= 5){ show('angry'); act('act-shake', 500); say('够了啊！'); }
+  else { act('act-hop', 440); say('戳我干嘛～'); }
+};
+
+window.chickFling = function(){         /* 被甩出去 */
+  act('act-shake', 560);
+  say('你扔我？…哼！');
+};
+
+/* ================= 喂食 🍚 ================= */
+
+const FEED_KEY = 'chickpet_fullness';
+const FEED_MAX = 5;
+let fullness = 3;
+try {
+  const v = parseInt(localStorage.getItem(FEED_KEY) || '', 10);
+  if (!isNaN(v)) fullness = Math.max(0, Math.min(FEED_MAX, v));
+} catch (e) {}
+
+function saveFullness(){
+  try { localStorage.setItem(FEED_KEY, String(fullness)); } catch (e) {}
+}
+
+const FEED_SEE  = ['🍚米！','啊呜！','有好吃的！','姆姆看到了！','是米米～'];
+const FEED_EAT  = ['好吃！','谢谢～','姆姆最喜欢你！','再来一粒～','啊呜啊呜…','香香的！'];
+const FEED_OVER = ['真的吃不下了…','姆姆要撑坏了！','（把米推开）','再喂就要变成球了…'];
+
+function pickLine(a){ return a[Math.floor(Math.random() * a.length)]; }
+
+/* 在脚边撒几粒米 */
+function spawnRice(){
+  const svg = figure.querySelector('svg');
+  if (!svg) return null;
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('class', 'ck-rice');
+  g.innerHTML =
+      '<rect x="16.2"  y="18.30" width="0.95" height="0.60" fill="#FFF6D5"/>' +
+      '<rect x="17.25" y="18.55" width="0.85" height="0.55" fill="#FFF6D5"/>' +
+      '<rect x="16.65" y="18.80" width="0.80" height="0.50" fill="#F3E9B8"/>';
+  svg.appendChild(g);
+  return g;
+}
+
+window.chickFullness = function(){ return fullness; };
+
+/* 喂一粒米 → 姆姆跑过去啄掉 */
+window.chickFeed = function(){
+  if (fullness >= FEED_MAX){
+    show('angry');
+    act('act-shake', 480);
+    say(pickLine(FEED_OVER));
+    return 'full';
+  }
+
+  const wasHungry = fullness <= 1;
+  fullness = Math.min(FEED_MAX, fullness + 1);
+  saveFullness();
+
+  show('happy');
+  const rice = spawnRice();       /* 必须放在 show() 之后，否则会被重建冲掉 */
+  act('act-eat', 1500);
+
+  say(wasHungry ? ('饿坏啦！' + pickLine(FEED_SEE)) : pickLine(FEED_SEE));
+  setTimeout(function(){ say(pickLine(FEED_EAT)); }, 1000);
+
+  setTimeout(function(){
+    if (rice && rice.parentNode) rice.parentNode.removeChild(rice);
+    if (fullness >= FEED_MAX) say('嗝～吃饱啦！');
+  }, 1900);
+
+  return 'fed';
+};
+
+/* 久了不喂会慢慢饿（每 3 分钟有 35% 概率掉一点） */
+setInterval(function(){
+  if (fullness > 0 && Math.random() < 0.35){
+    fullness--;
+    saveFullness();
+  }
+}, 3 * 60 * 1000);
 
 /* 浏览器里预览时直接点也能玩（桌宠里由 Android 驱动，不重复触发） */
 document.addEventListener('pointerup', function(e){

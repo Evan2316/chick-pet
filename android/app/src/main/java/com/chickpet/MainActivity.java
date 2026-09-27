@@ -70,6 +70,27 @@ public class MainActivity extends Activity {
         });
         root.addView(permBtn);
 
+        Button feedBtn = new Button(this);
+        feedBtn.setText("喂姆姆 🍚");
+        feedBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    Intent i = new Intent(MainActivity.this, ChickService.class);
+                    i.setAction(ChickService.ACTION_FEED);
+                    if (Build.VERSION.SDK_INT >= 26) {
+                        startForegroundService(i);
+                    } else {
+                        startService(i);
+                    }
+                    status.setText("已经撒了一粒米 🍚 看桌面～");
+                } catch (Exception e) {
+                    status.setText("投喂失败：" + e.getMessage());
+                }
+            }
+        });
+        root.addView(feedBtn);
+
         Button stopBtn = new Button(this);
         stopBtn.setText("收起桌宠");
         stopBtn.setOnClickListener(new View.OnClickListener() {
