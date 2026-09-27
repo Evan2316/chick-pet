@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ChickPet</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  /* ★ 桌宠里必须是全透明背景 */
+  html,body{
+    width:100%; height:100%;
+    background:transparent !important;
+    overflow:hidden; touch-action:none;
+  }
+  #wrap{ position:relative; width:100%; height:100%; }
+
+  /* 小鸡：占窗口底部一个正方形 */
+  #figure{
+    position:absolute; left:0; bottom:0;
+    width:100%; height:0; padding-bottom:100%;
+  }
+  #figure svg{
+    position:absolute; left:0; top:0;
+    width:100%; height:100%; display:block;
+    shape-rendering:crispEdges;
+  }
+
+  /* 气泡：窗口上方那 45% 留给它 */
+  #bubble{
+    position:absolute; left:50%; top:2%;
+    transform:translate(-50%,-6px) scale(.85);
+    max-width:96%;
+    padding:6px 11px;
+    border-radius:12px;
+    background:#fff; color:#333;
+    font-size:13px; line-height:1.25;
+    font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;
+    white-space:nowrap;
+    box-shadow:0 4px 12px rgba(0,0,0,.22);
+    opacity:0; pointer-events:none;
+    transition:opacity .22s, transform .22s;
+  }
+  #bubble::after{
+    content:""; position:absolute; left:50%; bottom:-5px;
+    transform:translateX(-50%);
+    border:6px solid transparent; border-top-color:#fff; border-bottom:0;
+  }
+  #bubble.show{ opacity:1; transform:translate(-50%,0) scale(1); }
+
+  /* 动画 */
+  .ck-body{ transform-origin:12.4px 17.44px; animation:ck-bob 2.8s ease-in-out infinite; }
+  .ck-shad{ transform-origin:12.4px 19.6px;  animation:ck-shad 2.8s ease-in-out infinite; }
+  .ck-eye { transform-origin:12.4px 12.48px; animation:ck-blink 4.2s infinite; }
+  .ck-zzz { animation:ck-zzz 2.4s var(--sd,0s) infinite ease-out; }
+  @keyframes ck-bob  { 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-.48px) } }
+  @keyframes ck-shad { 0%,100%{ transform:scaleX(1); opacity:.18 }
+                       50%{ transform:scaleX(.95);  opacity:.13 } }
+  @keyframes ck-blink{ 0%,44%,56%,100%{ transform:scaleY(1) } 50%{ transform:scaleY(.08) } }
+  @keyframes ck-zzz  { 0%{ opacity:0; transform:translate(0,0) scale(.7) }
+                       30%{ opacity:.9 }
+                       100%{ opacity:0; transform:translate(3px,-6px) scale(1.1) } }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="bubble"></div>
+    <div id="figure"></div>
+  </div>
+
+<script>
+/* ============================================================
+   黄色像素小鸡 · 桌宠版
+   ------------------------------------------------------------
+   与 Android 的接口：
+     chickNext()      换下一个表情
+     chickSay(text)   头顶弹一句话
+     chickSet(key)    直接指定形象（idle / happy / sleepy）
+   ============================================================ */
+
+const C = {
+  body : '#FEF367',
+  wing : '#F0D84B',
+  eye  : '#9C634C',
+  beak : '#FFB13C'
+};
+
+const SHADOW = `<rect class="ck-shad" x="8.0" y="19.2" width="8.8" height="0.8" fill="#000" opacity=".18"/>`;
+
+const LEGS = `
+  <g fill="${C.beak}">
+    <rect x="10.4" y="17.44" width="1.6" height="1.44"/>
+    <rect x="12.8" y="17.44" width="1.6" height="1.44"/>
+  </g>`;
+
+const BODY = `
+  <g fill="${C.body}">
+    <rect x="9.6" y="8.80"  width="5.6"  height="1.44"/>
+    <rect x="8.0" y="10.24" width="8.8"  height="1.44"/>
+    <rect x="7.2" y="11.68" width="10.4" height="1.44"/>
+    <rect x="7.2" y="13.12" width="10.4" height="1.44"/>
+    <rect x="8.0" y="14.56" width="8.8"  height="1.44"/>
+    <rect x="8.8" y="16.00" width="7.2"  height="1.44"/>
+  </g>`;
+
+const WINGS = `
+  <rect x="6.4"  y="12.16" width="1.6" height="2.4" fill="${C.wing}"/>
+  <rect x="16.8" y="12.16" width="1.6" height="2.4" fill="${C.wing}"/>`;
+
+const TUFT = `<rect x="12.0" y="7.36" width="0.8" height="1.44" fill="${C.wing}"/>`;
+
+const IDLE = `
+  ${SHADOW}
+  <g class="ck-body">
+    ${LEGS}
+    ${BODY}
+    ${WINGS}
+    ${TUFT}
+    <g class="ck-eye" fill="${C.eye}">
+      <rect x="9.6"  y="11.68" width="1.6" height="1.6"/>
+      <rect x="13.6" y="11.68" width="1.6" height="1.6"/>
+    </g>
+    <rect x="11.2" y="13.28" width="2.4" height="0.8" fill="${C.beak}"/>
+  </g>`;
+
+const HAPPY = `
+  ${SHADOW}
+  <g class="ck-body">
+    ${LEGS}
+    ${BODY}
+    <rect x="6.0"  y="11.68" width="1.6" height="2.4" fill="${C.wing}" transform="rotate(-20,6.8,12.88)"/>
+    <rect x="17.2" y="11.68" width="1.6" height="2.4" fill="${C.wing}" transform="rotate(20,18.0,12.88)"/>
+    ${TUFT}
+    <path d="M9.6 12.6 q0.8 -1.4 1.6 0"  fill="none" stroke="${C.eye}" stroke-width=".64" stroke-linecap="butt"/>
+    <path d="M13.6 12.6 q0.8 -1.4 1.6 0" fill="none" stroke="${C.eye}" stroke-width=".64" stroke-linecap="butt"/>
+    <rect x="11.2" y="13.28" width="2.4" height="1.6" fill="${C.beak}"/>
+    <rect x="12.0" y="14.4"  width="0.8" height="0.48" fill="#E08A22"/>
+  </g>`;
+
+const SLEEPY = `
+  ${SHADOW}
+  <g class="ck-body">
+    ${LEGS}
+    ${BODY}
+    <rect x="6.6"  y="12.4" width="1.4" height="2.3" fill="${C.wing}"/>
+    <rect x="16.8" y="12.4" width="1.4" height="2.3" fill="${C.wing}"/>
+    <rect x="12.8" y="7.36" width="0.8" height="1.44" fill="${C.wing}" transform="rotate(28,13.2,8.08)"/>
+    <g fill="${C.eye}" opacity=".85">
+      <rect x="9.6"  y="12.48" width="1.6" height="0.48"/>
+      <rect x="13.6" y="12.48" width="1.6" height="0.48"/>
+    </g>
+    <rect x="11.6" y="13.28" width="1.6" height="0.8" fill="${C.beak}"/>
+    <text class="ck-zzz" style="--sd:0s"    x="16.0" y="12.5" font-size="2.6" fill="#cfe2ff" font-family="monospace">z</text>
+    <text class="ck-zzz" style="--sd:-1.2s" x="17.3" y="10.4" font-size="1.9" fill="#cfe2ff" font-family="monospace" opacity=".8">z</text>
+  </g>`;
+
+function wrap(inner){
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0.4 2 24 24">${inner}</svg>`;
+}
+
+const STATES = { idle: wrap(IDLE), happy: wrap(HAPPY), sleepy: wrap(SLEEPY) };
+const ORDER  = ['idle', 'happy', 'sleepy'];
+
+const SAYINGS = [
+  '叽？', '叽叽！', '（歪头）', '我在呀～', '嘿嘿',
+  '今天也加油！', '咕……', '你有想我吗？',
+  '别熬太晚。', '我一直在这儿。', '要休息一下吗？'
+];
+
+/* ------------- 渲染 ------------- */
+const figure = document.getElementById('figure');
+const bubble = document.getElementById('bubble');
+
+let idx = 0;
+function render(){ figure.innerHTML = STATES[ORDER[idx]]; }
+function next(){ idx = (idx + 1) % ORDER.length; render(); }
+render();
+
+let sayTimer = null;
+function say(text){
+  bubble.textContent = text != null ? text
+      : SAYINGS[Math.floor(Math.random() * SAYINGS.length)];
+  bubble.classList.add('show');
+  clearTimeout(sayTimer);
+  sayTimer = setTimeout(function(){ bubble.classList.remove('show'); }, 3200);
+}
+
+/* ------------- 给 Android 调用的接口 ------------- */
+window.chickNext = function(){ next(); return ORDER[idx]; };
+window.chickSay  = function(text){ say(text); };
+window.chickSet  = function(key){
+  const i = ORDER.indexOf(key);
+  if (i >= 0){ idx = i; render(); }
+};
+
+/* 手指/鼠标也能直接玩（浏览器里预览时用） */
+document.addEventListener('pointerup', function(e){
+  // 只有落在小鸡身上才算点击（Android 端会自己调 chickNext）
+  const svg = figure.querySelector('svg');
+  if (!svg) return;
+  const r = figure.getBoundingClientRect();
+  if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom){
+    if (!window.__androiddriven) next();
+  }
+});
+</script>
+</body>
+</html>

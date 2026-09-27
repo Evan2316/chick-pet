@@ -59,3 +59,17 @@ jobs:
           name: chickpet-apk
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+      # 额外：把 APK 提交到 apk 分支，方便直接下载（不需要 API）
+      - name: Publish APK to 'apk' branch
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/*.apk out/chickpet.apk
+          ls -lh out/
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B apk
+          git add -f out/chickpet.apk
+          git commit -m "build: apk [skip ci]" || echo "nothing to commit"
+          git push -f origin apk
+          echo "APK 已推送到 apk 分支: https://raw.githubusercontent.com/${{ github.repository }}/apk/out/chickpet.apk"
