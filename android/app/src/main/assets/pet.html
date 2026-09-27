@@ -44,7 +44,7 @@
   }
   #bubble.show{ opacity:1; transform:translate(-50%,0) scale(1); }
 
-  /* ========== 动画 ========== */
+  /* ========== 动作动画 ========== */
   .ck-body{ transform-origin:12.4px 17.44px; }
   .ck-shad{ transform-origin:12.4px 19.6px; animation:ck-shad 2.8s ease-in-out infinite; }
   .ck-eye { transform-origin:12.4px 12.48px; animation:ck-blink 4.2s infinite; }
@@ -57,6 +57,7 @@
   .ck-a-angry{ animation:ck-shake .16s linear infinite; }
   .ck-a-love { animation:ck-love 2.0s ease-in-out infinite; }
   .ck-a-peck { animation:ck-peck 1.15s ease-in-out infinite; }
+  .ck-a-beg  { animation:ck-beg 1.5s ease-in-out infinite; }
 
   .ck-note, .ck-heart, .ck-steam{ animation:ck-rise 1.9s var(--sd,0s) infinite ease-out; }
   .ck-heart{ animation-duration:2.3s; }
@@ -91,6 +92,10 @@
     28%    { transform:rotate(15deg) }
     55%    { transform:rotate(1deg) }
   }
+  @keyframes ck-beg {
+    0%,100%{ transform:translateY(0) rotate(-1.8deg) }
+    50%    { transform:translateY(-1px) rotate(1.8deg) }
+  }
   @keyframes ck-rise {
     0%  { opacity:0; transform:translate(0,1.2px) scale(.6) }
     25% { opacity:1 }
@@ -98,7 +103,6 @@
   }
 
   /* ========== 手势用的临时动作（加在 #figure 上，播完自己摘掉） ========== */
-  /* 小鸡的旋转/位移以「脚下中心」为基准：12.4/24 = 51.7%，17.44/24 = 72.7% */
   #figure svg{ transform-origin:51.7% 72.7%; }
 
   #figure.act-hop svg   { animation:act-hop .42s ease-out; }
@@ -119,7 +123,6 @@
     100%{ transform:translate(0,0) rotate(0) }
   }
 
-  /* 米粒 */
   .ck-rice{ animation:ck-rice-in .28s ease-out; }
   @keyframes ck-rice-in { from{ opacity:0; transform:translateY(-2px) } to{ opacity:1; transform:translateY(0) } }
 </style>
@@ -132,18 +135,15 @@
 
 <script>
 /* ============================================================
-   黄色像素小鸡 · 桌宠版 v2
+   黄色像素小鸡 · 姆姆 · 桌宠版 v3
    ------------------------------------------------------------
-   8 个动作：idle 待机 / happy 开心 / sleepy 困 / jump 蹦跳
-             dance 摇摆 / angry 生气 / love 害羞 / peck 啄米
+   9 个状态：idle 待机 / happy 开心 / sleepy 困 / jump 蹦跳
+             dance 摇摆 / angry 生气 / love 害羞 / peck 啄米 / beg 求喂
 
-   给 Android 的接口：
-     chickNext()       随机换动作 + 说对应的话
-     chickAct()        随机做个动作（约一半概率说话）
-     chickSay(text)    指定说一句话
-     chickSayRandom()  按当前动作随机说一句
-     chickSet(key)     直接切到某个动作
-     chickRest()       回到待机
+   Android 调用：chickNext chickAct chickSay chickSayRandom
+                chickSet chickSetName chickRest
+                chickPoke chickHold chickCombo chickFling
+                chickFeed chickFullness chickHungry
    ============================================================ */
 
 const C = {
@@ -177,7 +177,6 @@ const WINGS = `
 
 const TUFT = `<rect x="12.0" y="7.36" width="0.8" height="1.44" fill="${C.wing}"/>`;
 
-/* 像素小爱心（5×5 点阵） */
 const HEART_PTS = [
   [0,0],[1,0],[3,0],[4,0],
   [0,1],[1,1],[2,1],[3,1],[4,1],
@@ -326,6 +325,25 @@ const PECK = `
     <rect x="11.5" y="13.6" width="1.6" height="1.0" fill="${C.beak}"/>
   </g>`;
 
+/* ---------------- 求喂（饿到跑来找你） ---------------- */
+const BEG = `
+  ${SHADOW}
+  <g class="ck-body ck-a-beg">
+    ${LEGS}
+    ${BODY}
+    ${WINGS}
+    ${TUFT}
+    <g class="ck-eye" fill="${C.eye}">
+      <rect x="9.5"  y="11.30" width="1.8" height="2.0"/>
+      <rect x="13.5" y="11.30" width="1.8" height="2.0"/>
+    </g>
+    <rect x="10.1" y="11.60" width="0.5" height="0.5" fill="#FFFFFF" opacity=".9"/>
+    <rect x="14.1" y="11.60" width="0.5" height="0.5" fill="#FFFFFF" opacity=".9"/>
+    <rect x="11.6" y="13.75" width="1.6" height="0.65" fill="${C.beak}"/>
+    <text class="ck-note" style="--sd:0s"   x="16.0" y="9.5" font-size="3.2" fill="#FFE07A" font-family="sans-serif">🍚</text>
+    <text class="ck-note" style="--sd:-.9s" x="14.2" y="7.6" font-size="2.4" fill="#FFE07A" font-family="sans-serif" opacity=".85">🍚</text>
+  </g>`;
+
 function wrap(inner){
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0.4 2 24 24">' + inner + '</svg>';
 }
@@ -338,7 +356,8 @@ const STATES = {
   dance: wrap(DANCE),
   angry: wrap(ANGRY),
   love:  wrap(LOVE),
-  peck:  wrap(PECK)
+  peck:  wrap(PECK),
+  beg:   wrap(BEG)
 };
 
 const ORDER = ['idle','happy','sleepy','jump','dance','angry','love','peck'];
@@ -428,12 +447,11 @@ window.chickAct = function(){
 window.chickSay = function(text){ say(text); };
 
 window.chickSayRandom = function(){
-  if (fullness <= 1 && Math.random() < 0.65){ say('姆姆饿了…🍚'); return; }
+  if (fullness <= 1 && Math.random() < 0.65){ say(pickLine(HUNGRY_LINES)); return; }
   if (fullness >= FEED_MAX && Math.random() < 0.5){ say('好饱…嗝～'); return; }
   say(line(cur));
 };
 
-/* Android 会把 config.json 里的名字注入进来 */
 window.chickSetName = function(n){
   if (n != null && String(n) !== '') NAME = String(n);
   return NAME;
@@ -443,10 +461,8 @@ window.chickSet = function(key){ show(key); return key; };
 
 window.chickRest = function(){ show('idle', false); };
 
-/* ================= 手势接口（由 Android 的触摸手势调用） ================= */
+/* ================= 手势接口 ================= */
 
-/* 临时动作：给 #figure 挂一个动画类，播完自己摘掉。
-   必须 void offsetWidth 强制重排，否则连着触发同一个动画会没反应 */
 const ACT_CLASSES = ['act-hop','act-shake','act-shrink','act-eat'];
 function act(cls, ms){
   for (let i = 0; i < ACT_CLASSES.length; i++) figure.classList.remove(ACT_CLASSES[i]);
@@ -495,10 +511,10 @@ function saveFullness(){
 const FEED_SEE  = ['🍚米！','啊呜！','有好吃的！','姆姆看到了！','是米米～'];
 const FEED_EAT  = ['好吃！','谢谢～','姆姆最喜欢你！','再来一粒～','啊呜啊呜…','香香的！'];
 const FEED_OVER = ['真的吃不下了…','姆姆要撑坏了！','（把米推开）','再喂就要变成球了…'];
+const HUNGRY_LINES = ['姆姆饿了…🍚','喂喂姆姆好不好…','肚子咕咕叫了…','想吃米米…🍚','姆姆快饿扁了…','有没有吃的呀…'];
 
 function pickLine(a){ return a[Math.floor(Math.random() * a.length)]; }
 
-/* 在脚边撒几粒米 */
 function spawnRice(){
   const svg = figure.querySelector('svg');
   if (!svg) return null;
@@ -540,6 +556,19 @@ window.chickFeed = function(){
   }, 1900);
 
   return 'fed';
+};
+
+/* 饿到不行 → 可怜巴巴地求你喂（Android 会把它搬到屏幕中间再调这个） */
+window.chickHungry = function(){
+  show('beg', false);
+  say(pickLine(HUNGRY_LINES));
+  setTimeout(function(){
+    if (cur === 'beg') say(pickLine(HUNGRY_LINES));
+  }, 4000);
+  setTimeout(function(){
+    if (cur === 'beg') say('姆姆在这儿等你…🍚');
+  }, 9000);
+  return 'beg';
 };
 
 /* 久了不喂会慢慢饿（每 3 分钟有 35% 概率掉一点） */

@@ -104,6 +104,7 @@ public class ChickService extends Service {
         gestureHandler.postDelayed(wanderLoop, 9000);
         gestureHandler.postDelayed(sayLoop, 20000);
         gestureHandler.postDelayed(actionLoop, 30000);
+        gestureHandler.postDelayed(hungryLoop, 60000);   // 1 分钟后开始盯饿不饿
     }
 
     @Override
@@ -492,6 +493,67 @@ public class ChickService extends Service {
             gestureHandler.postDelayed(this, 20000 + random.nextInt(40000));
         }
     };
+
+    // ---------------------------------------------------------------- 饿了自己跑来求喂
+
+    private long lastBegAt = 0L;
+
+    private final Runnable hungryLoop = new Runnable() {
+        @Override
+        public void run() {
+            checkHungry();
+            gestureHandler.postDelayed(this, 40000 + random.nextInt(50000));  // 40~90 秒查一次
+        }
+    };
+
+    /** 问网页当前饱食度（0 饿 ~ 5 饱），<=1 就跑去找你要饭 */
+    private void checkHungry() {
+        final WebView w = web;
+        if (w == null || root == null) return;
+        w.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    w.evaluateJavascript(
+                            "window.chickFullness ? window.chickFullness() : -1",
+                            new android.webkit.ValueCallback<String>() {
+                                @Override
+                                public void onReceiveValue(String value) {
+                                    try {
+                                        int f = (int) Double.parseDouble(
+                                                value.trim().replace("\"", ""));
+                                        if (f >= 0 && f <= 1) begForFood();
+                                    } catch (Exception ignored) {
+                                    }
+                                }
+                            });
+                } catch (Exception ignored) {
+                }
+            }
+        });
+    }
+
+    /** 跑到屏幕中间，可怜巴巴地求喂；25 秒没等到饭就自己回去溜达 */
+    private void begForFood() {
+        if (System.currentTimeMillis() - lastTouchAt < 15000) return;      // 刚被摸过，别打扰
+        if (System.currentTimeMillis() - lastBegAt < 4 * 60 * 1000L) return; // 4 分钟最多求一次
+        lastBegAt = System.currentTimeMillis();
+
+        callJs("chickHungry");
+        animateTo(Math.max(0, (screenW - sizePx) / 2),
+                (int) (screenH * 0.42f), 1200);
+
+        gestureHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (System.currentTimeMillis() - lastTouchAt > 25000
+                        && System.currentTimeMillis() - lastBegAt > 25000) {
+                    callJs("chickRest");     // 没人理，哼
+                    wander();
+                }
+            }
+        }, 25000);
+    }
 
     // ---------------------------------------------------------------- 调网页
 
